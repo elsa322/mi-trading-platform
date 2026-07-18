@@ -3,59 +3,56 @@
 
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Mi Trading Platform</title>
+<title>Trading Simulator Pro</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 
 <style>
 
-body {
-    margin:0;
-    background:#0f172a;
-    color:white;
-    font-family:Arial, sans-serif;
+body{
+margin:0;
+background:#0f172a;
+color:white;
+font-family:Arial;
 }
 
-header {
-    background:#111827;
-    padding:15px;
-    text-align:center;
-    font-size:25px;
+header{
+background:#111827;
+padding:15px;
+text-align:center;
+font-size:25px;
 }
 
-#chart {
-    height:500px;
-    margin:20px;
+#chart{
+height:500px;
+margin:20px;
 }
 
-.panel {
-    text-align:center;
-    padding:10px;
+.panel{
+text-align:center;
 }
 
-button {
-    padding:12px 35px;
-    margin:10px;
-    border:none;
-    border-radius:5px;
-    font-size:18px;
-    cursor:pointer;
+button{
+padding:12px 30px;
+margin:10px;
+font-size:18px;
+cursor:pointer;
+border-radius:5px;
+border:none;
 }
 
-.buy {
-    background:#16a34a;
-    color:white;
+.buy{
+background:#16a34a;
+color:white;
 }
 
-.sell {
-    background:#dc2626;
-    color:white;
+.sell{
+background:#dc2626;
+color:white;
 }
 
-.info {
-    font-size:20px;
+.info{
+font-size:20px;
 }
 
 </style>
@@ -65,9 +62,8 @@ button {
 
 <body>
 
-
 <header>
-📈 Mi Trading Platform Demo
+📈 Trading Simulator Pro
 </header>
 
 
@@ -81,8 +77,8 @@ button {
 <button class="sell" onclick="sell()">VENDER</button>
 
 
-<p class="info" id="price">
-Precio: 100.00
+<p class="info" id="timer">
+Tiempo: -- 
 </p>
 
 
@@ -91,8 +87,7 @@ Balance: $1000
 </p>
 
 
-<p id="message"></p>
-
+<p id="result"></p>
 
 </div>
 
@@ -101,174 +96,215 @@ Balance: $1000
 <script>
 
 
-// Crear gráfico profesional
-
 const chart = LightweightCharts.createChart(
 document.getElementById("chart"),
 {
-    width: window.innerWidth - 40,
-    height:500,
+height:500,
 
-    layout:{
-        background:{
-            color:"#0f172a"
-        },
-        textColor:"#ffffff"
-    },
+layout:{
+background:{color:"#0f172a"},
+textColor:"white"
+}
 
-    grid:{
-        vertLines:{
-            color:"#1e293b"
-        },
-        horzLines:{
-            color:"#1e293b"
-        }
-    }
 });
 
 
-// Crear velas
+const candleSeries = chart.addCandlestickSeries();
 
-const candles = chart.addCandlestickSeries({
-    upColor:"#22c55e",
-    downColor:"#ef4444",
-    borderVisible:false,
-    wickUpColor:"#22c55e",
-    wickDownColor:"#ef4444"
+
+let price=100;
+
+let time=Math.floor(Date.now()/1000)-3600;
+
+let candles=[];
+
+
+for(let i=0;i<50;i++){
+
+let open=price;
+
+let close=open+(Math.random()-0.5)*5;
+
+
+candles.push({
+
+time:time,
+open:open,
+high:Math.max(open,close)+2,
+low:Math.min(open,close)-2,
+close:close
+
 });
 
 
-// Datos iniciales
-
-let data=[];
-
-let currentPrice=100;
-
-let currentTime=Math.floor(Date.now()/1000)-3600;
-
-
-for(let i=0;i<60;i++){
-
-    let open=currentPrice;
-
-    let close=open+(Math.random()-0.5)*5;
-
-    let high=Math.max(open,close)+2;
-
-    let low=Math.min(open,close)-2;
-
-
-    data.push({
-
-        time:currentTime,
-        open:open,
-        high:high,
-        low:low,
-        close:close
-
-    });
-
-
-    currentPrice=close;
-
-    currentTime+=60;
+price=close;
+time+=60;
 
 }
 
 
-candles.setData(data);
+candleSeries.setData(candles);
 
 
-
-// Movimiento de mercado
 
 setInterval(()=>{
 
 
-let open=currentPrice;
+let open=price;
 
 let close=open+(Math.random()-0.5)*5;
 
 
 let candle={
 
-time:currentTime,
-
+time:time,
 open:open,
-
 high:Math.max(open,close)+2,
-
 low:Math.min(open,close)-2,
-
 close:close
 
 };
 
 
-candles.update(candle);
+candleSeries.update(candle);
 
 
-currentPrice=close;
+price=close;
 
-currentTime+=60;
-
-
-document.getElementById("price").innerHTML=
-"Precio: "+currentPrice.toFixed(2);
+time+=60;
 
 
 },2000);
 
 
 
-// Sistema demo
+// TRADING
+
 
 let balance=1000;
+
+let entry=0;
+
+let position="";
+
 
 
 function buy(){
 
-balance+=10;
-
-document.getElementById("balance").innerHTML=
-"Balance: $"+balance;
-
-
-document.getElementById("message").innerHTML=
-"Compra ejecutada";
-
+startTrade("BUY");
 
 }
-
 
 
 function sell(){
 
-balance-=10;
+startTrade("SELL");
 
-document.getElementById("balance").innerHTML=
-"Balance: $"+balance;
+}
 
 
-document.getElementById("message").innerHTML=
-"Venta ejecutada";
+
+function startTrade(type){
+
+entry=price;
+
+position=type;
+
+
+let marker={
+
+time:time,
+position:"belowBar",
+color:"blue",
+shape:"arrowUp",
+text:type+" Entrada"
+
+};
+
+
+candleSeries.setMarkers([marker]);
+
+
+let seconds=60;
+
+
+let timer=setInterval(()=>{
+
+
+document.getElementById("timer").innerHTML=
+"Tiempo: "+seconds+" segundos";
+
+
+seconds--;
+
+
+if(seconds<0){
+
+clearInterval(timer);
+
+finishTrade();
+
+}
+
+
+},1000);
 
 
 }
 
 
 
-// Ajustar tamaño
+function finishTrade(){
 
-window.addEventListener("resize",()=>{
 
-chart.applyOptions({
+let win=false;
 
-width:window.innerWidth-40
 
-});
+if(position=="BUY" && price>entry){
 
-});
+win=true;
+
+}
+
+
+if(position=="SELL" && price<entry){
+
+win=true;
+
+}
+
+
+
+if(win){
+
+balance+=10;
+
+document.getElementById("result").innerHTML=
+"✅ Ganaste +$10";
+
+
+}else{
+
+
+balance-=10;
+
+document.getElementById("result").innerHTML=
+"❌ Perdiste -$10";
+
+
+}
+
+
+
+document.getElementById("balance").innerHTML=
+"Balance: $"+balance;
+
+
+document.getElementById("timer").innerHTML=
+"Operación terminada";
+
+
+}
 
 
 </script>
