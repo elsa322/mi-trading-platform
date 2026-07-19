@@ -3,7 +3,7 @@
 
 <head>
 <meta charset="UTF-8">
-<title>Trading Simulator Pro</title>
+<title>Forex Trading Pro</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 
@@ -11,34 +11,40 @@
 
 body{
 margin:0;
-background:#0f172a;
+background:#0b1220;
 color:white;
 font-family:Arial;
+display:flex;
 }
 
-header{
-background:#111827;
-padding:15px;
-text-align:center;
-font-size:25px;
-}
+/* PANEL IZQUIERDO (GRÁFICO) */
 
 #chart{
-height:500px;
-margin:20px;
+width:75%;
+height:100vh;
 }
 
+/* PANEL DERECHO */
+
 .panel{
-text-align:center;
+width:25%;
+background:#111827;
+padding:20px;
+box-sizing:border-box;
+}
+
+h2{
+margin-top:0;
 }
 
 button{
-padding:12px 30px;
-margin:10px;
-font-size:18px;
-cursor:pointer;
-border-radius:5px;
+width:100%;
+padding:12px;
+margin-top:10px;
+font-size:16px;
 border:none;
+border-radius:5px;
+cursor:pointer;
 }
 
 .buy{
@@ -51,8 +57,24 @@ background:#dc2626;
 color:white;
 }
 
+input{
+width:100%;
+padding:10px;
+margin-top:10px;
+border-radius:5px;
+border:none;
+}
+
 .info{
-font-size:20px;
+margin-top:15px;
+font-size:18px;
+}
+
+.trade{
+background:#1f2937;
+padding:10px;
+margin-top:10px;
+border-radius:5px;
 }
 
 </style>
@@ -62,253 +84,251 @@ font-size:20px;
 
 <body>
 
-<header>
-📈 Trading Simulator Pro
-</header>
-
-
 <div id="chart"></div>
-
 
 <div class="panel">
 
-<button class="buy" onclick="buy()">COMPRAR</button>
+<h2>EUR/USD</h2>
 
-<button class="sell" onclick="sell()">VENDER</button>
+<input type="number" id="lot" value="1" step="0.1">
 
+<button class="buy" onclick="buy()">BUY</button>
+<button class="sell" onclick="sell()">SELL</button>
 
-<p class="info" id="timer">
-Tiempo: -- 
-</p>
+<div class="info" id="price">Precio: 1.1000</div>
+<div class="info" id="balance">Balance: $10000</div>
 
+<h3>Trades</h3>
+<div id="trades"></div>
 
-<p class="info" id="balance">
-Balance: $1000
-</p>
-
-
-<p id="result"></p>
+<h3>Stats</h3>
+<div id="stats"></div>
 
 </div>
 
 
-
 <script>
 
+// ===== GRÁFICO =====
 
-const chart = LightweightCharts.createChart(
-document.getElementById("chart"),
-{
-height:500,
-
-layout:{
-background:{color:"#0f172a"},
-textColor:"white"
-}
-
+const chart = LightweightCharts.createChart(document.getElementById("chart"),{
+layout:{background:{color:"#0b1220"},textColor:"white"},
+grid:{vertLines:{color:"#1e293b"},horzLines:{color:"#1e293b"}},
+width:window.innerWidth*0.75,
+height:window.innerHeight
 });
 
+const candles = chart.addCandlestickSeries();
 
-const candleSeries = chart.addCandlestickSeries();
+const maLine = chart.addLineSeries({color:"yellow"});
 
-
-let price=100;
-
+let data=[];
+let price=1.1000;
 let time=Math.floor(Date.now()/1000)-3600;
 
-let candles=[];
+// DATOS INICIALES
 
-
-for(let i=0;i<50;i++){
+for(let i=0;i<100;i++){
 
 let open=price;
+let close=open+(Math.random()-0.5)*0.002;
 
-let close=open+(Math.random()-0.5)*5;
-
-
-candles.push({
-
+data.push({
 time:time,
 open:open,
-high:Math.max(open,close)+2,
-low:Math.min(open,close)-2,
+high:Math.max(open,close)+0.001,
+low:Math.min(open,close)-0.001,
 close:close
-
 });
-
 
 price=close;
 time+=60;
 
 }
 
+candles.setData(data);
 
-candleSeries.setData(candles);
+// MEDIA MOVIL
+
+function calcMA(){
+
+let ma=[];
+
+for(let i=10;i<data.length;i++){
+
+let sum=0;
+
+for(let j=0;j<10;j++){
+sum+=data[i-j].close;
+}
+
+ma.push({
+time:data[i].time,
+value:sum/10
+});
+
+}
+
+maLine.setData(ma);
+
+}
+
+calcMA();
 
 
+// ===== MERCADO EN VIVO =====
 
 setInterval(()=>{
 
-
 let open=price;
-
-let close=open+(Math.random()-0.5)*5;
-
+let close=open+(Math.random()-0.5)*0.002;
 
 let candle={
-
 time:time,
 open:open,
-high:Math.max(open,close)+2,
-low:Math.min(open,close)-2,
+high:Math.max(open,close)+0.001,
+low:Math.min(open,close)-0.001,
 close:close
-
 };
 
+candles.update(candle);
 
-candleSeries.update(candle);
-
+data.push(candle);
 
 price=close;
-
 time+=60;
 
+document.getElementById("price").innerHTML=
+"Precio: "+price.toFixed(5);
+
+calcMA();
+
+updateFloating();
 
 },2000);
 
 
+// ===== TRADING =====
 
-// TRADING
-
-
-let balance=1000;
-
-let entry=0;
-
-let position="";
-
-
+let balance=10000;
+let trades=[];
+let wins=0;
+let losses=0;
 
 function buy(){
-
-startTrade("BUY");
-
+openTrade("BUY");
 }
-
 
 function sell(){
-
-startTrade("SELL");
-
+openTrade("SELL");
 }
 
+function openTrade(type){
 
+let lot=parseFloat(document.getElementById("lot").value);
 
-function startTrade(type){
-
-entry=price;
-
-position=type;
-
-
-let marker={
-
-time:time,
-position:"belowBar",
-color:"blue",
-shape:"arrowUp",
-text:type+" Entrada"
-
+let trade={
+type:type,
+entry:price,
+lot:lot,
+open:true
 };
 
+trades.push(trade);
 
-candleSeries.setMarkers([marker]);
-
-
-let seconds=60;
-
-
-let timer=setInterval(()=>{
-
-
-document.getElementById("timer").innerHTML=
-"Tiempo: "+seconds+" segundos";
-
-
-seconds--;
-
-
-if(seconds<0){
-
-clearInterval(timer);
-
-finishTrade();
+renderTrades();
 
 }
 
+function updateFloating(){
 
-},1000);
+trades.forEach(trade=>{
 
+if(!trade.open) return;
 
-}
+let profit=0;
 
-
-
-function finishTrade(){
-
-
-let win=false;
-
-
-if(position=="BUY" && price>entry){
-
-win=true;
-
-}
-
-
-if(position=="SELL" && price<entry){
-
-win=true;
-
-}
-
-
-
-if(win){
-
-balance+=10;
-
-document.getElementById("result").innerHTML=
-"✅ Ganaste +$10";
-
-
+if(trade.type==="BUY"){
+profit=(price-trade.entry)*10000*trade.lot;
 }else{
+profit=(trade.entry-price)*10000*trade.lot;
+}
 
+trade.profit=profit;
 
-balance-=10;
+});
 
-document.getElementById("result").innerHTML=
-"❌ Perdiste -$10";
-
+renderTrades();
 
 }
 
+function closeTrade(index){
 
+let trade=trades[index];
+
+trade.open=false;
+
+balance+=trade.profit;
+
+if(trade.profit>0){
+wins++;
+}else{
+losses++;
+}
+
+updateUI();
+
+}
+
+function renderTrades(){
+
+let html="";
+
+trades.forEach((t,i)=>{
+
+html+=`
+<div class="trade">
+${t.type} | Entry: ${t.entry.toFixed(5)}<br>
+Profit: ${t.profit ? t.profit.toFixed(2):0}<br>
+${t.open ? `<button onclick="closeTrade(${i})">Cerrar</button>`:"Cerrado"}
+</div>
+`;
+
+});
+
+document.getElementById("trades").innerHTML=html;
+
+updateUI();
+
+}
+
+function updateUI(){
 
 document.getElementById("balance").innerHTML=
-"Balance: $"+balance;
+"Balance: $"+balance.toFixed(2);
 
+let total=wins+losses;
 
-document.getElementById("timer").innerHTML=
-"Operación terminada";
+let winrate= total>0 ? (wins/total*100).toFixed(1):0;
 
+document.getElementById("stats").innerHTML=
+"Ganadas: "+wins+"<br>Perdidas: "+losses+"<br>Winrate: "+winrate+"%";
 
 }
 
 
-</script>
+// RESPONSIVE
 
+window.addEventListener("resize",()=>{
+
+chart.applyOptions({
+width:window.innerWidth*0.75,
+height:window.innerHeight
+});
+
+});
+
+</script>
 
 </body>
 
