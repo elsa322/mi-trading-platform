@@ -1,39 +1,178 @@
-<style>
-#overlay {
-  position: relative;
-  top: -500px;
-  height: 500px;
-  pointer-events: none;
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Trading PRO FIX</title>
+  <script src="https://s3.tradingview.com/tv.js"></script>
+
+  <style>
+    body {
+      background:#0d1117;
+      color:white;
+      text-align:center;
+      font-family:Arial;
+    }
+
+    #chart {
+      height:500px;
+    }
+
+    #overlay {
+      position:relative;
+      top:-500px;
+      height:500px;
+      pointer-events:none;
+    }
+
+    .trade-line {
+      position:absolute;
+      width:100%;
+      height:2px;
+    }
+
+    .buy-line { background:lime; }
+    .sell-line { background:red; }
+
+    .trade-label {
+      position:absolute;
+      right:10px;
+      padding:4px 8px;
+      font-size:12px;
+      border-radius:5px;
+      color:white;
+    }
+
+    .buy-label { background:green; }
+    .sell-label { background:red; }
+
+    button {
+      padding:10px;
+      margin:10px;
+      font-size:16px;
+    }
+  </style>
+</head>
+
+<body>
+
+<h2>Balance: $<span id="balance">1000</span></h2>
+<h3 id="price">Cargando...</h3>
+
+<div id="chart"></div>
+<div id="overlay"></div>
+
+<button onclick="trade('buy')">BUY</button>
+<button onclick="trade('sell')">SELL</button>
+
+<script>
+let balance = 1000;
+let price = 1.1000;
+let spread = 0.0002;
+let trades = [];
+
+// TradingView
+new TradingView.widget({
+  container_id: "chart",
+  width: "100%",
+  height: 500,
+  symbol: "FX:EURUSD",
+  interval: "1",
+  theme: "dark",
+  style: "1"
+});
+
+// Crear visual
+function createTradeVisual(trade){
+  let overlay = document.getElementById("overlay");
+  if(!overlay) return;
+
+  let line = document.createElement("div");
+  let label = document.createElement("div");
+
+  line.className = "trade-line " + (trade.type === "buy" ? "buy-line" : "sell-line");
+  label.className = "trade-label " + (trade.type === "buy" ? "buy-label" : "sell-label");
+
+  overlay.appendChild(line);
+  overlay.appendChild(label);
+
+  trade.line = line;
+  trade.label = label;
 }
 
-.trade-line {
-  position: absolute;
-  width: 100%;
-  height: 2px;
+// Actualizar visual
+function updateTradeVisuals(){
+  trades.forEach(trade => {
+
+    let y = 500 - ((trade.entry - 1.095) * 200000);
+
+    if(trade.line && trade.label){
+      trade.line.style.top = y + "px";
+      trade.label.style.top = (y - 10) + "px";
+    }
+
+    let profit = trade.type === "buy"
+      ? price - trade.entry
+      : trade.entry - price;
+
+    let pips = (profit * 10000).toFixed(1);
+
+    if(trade.label){
+      trade.label.innerText =
+        trade.type.toUpperCase() +
+        " | " + trade.entry.toFixed(5) +
+        " | " + pips + " pips";
+    }
+  });
 }
 
-.buy-line {
-  background: lime;
-}
+// Mercado simulado
+setInterval(() => {
 
-.sell-line {
-  background: red;
-}
+  let move = (Math.random() - 0.5) * 0.001;
+  price += move;
 
-.trade-label {
-  position: absolute;
-  right: 10px;
-  padding: 4px 8px;
-  font-size: 12px;
-  border-radius: 5px;
-  color: white;
-}
+  let bid = price;
+  let ask = price + spread;
 
-.buy-label {
-  background: green;
-}
+  document.getElementById("price").innerText =
+    "BID: " + bid.toFixed(5) + " | ASK: " + ask.toFixed(5);
 
-.sell-label {
-  background: red;
+  updateTradeVisuals();
+
+}, 1000);
+
+// Ejecutar trade
+function trade(type){
+  let entry = price;
+
+  let tradeObj = {
+    type: type,
+    entry: entry,
+    line: null,
+    label: null
+  };
+
+  trades.push(tradeObj);
+  createTradeVisual(tradeObj);
+
+  setTimeout(() => {
+
+    let exit = price;
+    let win = (type === "buy" && exit > entry) ||
+              (type === "sell" && exit < entry);
+
+    if(Math.random() < 0.3){
+      win = false;
+    }
+
+    balance += win ? 50 : -50;
+
+    alert(win ? "✅ Ganaste" : "❌ Perdiste");
+
+    document.getElementById("balance").innerText = balance;
+
+  }, 5000);
 }
-</style>
+</script>
+
+</body>
+</html>
