@@ -3,7 +3,7 @@
 
 <head>
 <meta charset="UTF-8">
-<title>Forex Trading Pro</title>
+<title>Forex Pro Level</title>
 
 <script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
 
@@ -11,51 +11,34 @@
 
 body{
 margin:0;
+display:flex;
 background:#0b1220;
 color:white;
 font-family:Arial;
-display:flex;
 }
-
-/* PANEL IZQUIERDO (GRÁFICO) */
 
 #chart{
 width:75%;
 height:100vh;
 }
 
-/* PANEL DERECHO */
-
 .panel{
 width:25%;
 background:#111827;
 padding:20px;
-box-sizing:border-box;
-}
-
-h2{
-margin-top:0;
 }
 
 button{
 width:100%;
 padding:12px;
 margin-top:10px;
-font-size:16px;
 border:none;
 border-radius:5px;
 cursor:pointer;
 }
 
-.buy{
-background:#16a34a;
-color:white;
-}
-
-.sell{
-background:#dc2626;
-color:white;
-}
+.buy{background:#16a34a;color:white;}
+.sell{background:#dc2626;color:white;}
 
 input{
 width:100%;
@@ -63,11 +46,6 @@ padding:10px;
 margin-top:10px;
 border-radius:5px;
 border:none;
-}
-
-.info{
-margin-top:15px;
-font-size:18px;
 }
 
 .trade{
@@ -90,19 +68,17 @@ border-radius:5px;
 
 <h2>EUR/USD</h2>
 
-<input type="number" id="lot" value="1" step="0.1">
+<input id="lot" type="number" value="1" step="0.1">
+<input id="sl" type="number" placeholder="Stop Loss (ej: 1.0980)">
+<input id="tp" type="number" placeholder="Take Profit (ej: 1.1020)">
 
 <button class="buy" onclick="buy()">BUY</button>
 <button class="sell" onclick="sell()">SELL</button>
 
-<div class="info" id="price">Precio: 1.1000</div>
-<div class="info" id="balance">Balance: $10000</div>
+<h3 id="price">Precio: 1.1000</h3>
+<h3 id="balance">Balance: $10000</h3>
 
-<h3>Trades</h3>
 <div id="trades"></div>
-
-<h3>Stats</h3>
-<div id="stats"></div>
 
 </div>
 
@@ -113,33 +89,30 @@ border-radius:5px;
 
 const chart = LightweightCharts.createChart(document.getElementById("chart"),{
 layout:{background:{color:"#0b1220"},textColor:"white"},
-grid:{vertLines:{color:"#1e293b"},horzLines:{color:"#1e293b"}},
 width:window.innerWidth*0.75,
 height:window.innerHeight
 });
 
 const candles = chart.addCandlestickSeries();
 
-const maLine = chart.addLineSeries({color:"yellow"});
-
 let data=[];
 let price=1.1000;
 let time=Math.floor(Date.now()/1000)-3600;
-
-// DATOS INICIALES
 
 for(let i=0;i<100;i++){
 
 let open=price;
 let close=open+(Math.random()-0.5)*0.002;
 
-data.push({
+let candle={
 time:time,
 open:open,
 high:Math.max(open,close)+0.001,
 low:Math.min(open,close)-0.001,
 close:close
-});
+};
+
+data.push(candle);
 
 price=close;
 time+=60;
@@ -148,35 +121,58 @@ time+=60;
 
 candles.setData(data);
 
-// MEDIA MOVIL
 
-function calcMA(){
+// ===== TRADES =====
 
-let ma=[];
+let trades=[];
+let balance=10000;
 
-for(let i=10;i<data.length;i++){
+function buy(){ openTrade("BUY"); }
+function sell(){ openTrade("SELL"); }
 
-let sum=0;
+function openTrade(type){
 
-for(let j=0;j<10;j++){
-sum+=data[i-j].close;
+let lot=parseFloat(document.getElementById("lot").value);
+let sl=parseFloat(document.getElementById("sl").value);
+let tp=parseFloat(document.getElementById("tp").value);
+
+let trade={
+type:type,
+entry:price,
+lot:lot,
+sl:sl,
+tp:tp,
+open:true
+};
+
+trades.push(trade);
+
+drawLines(trade);
+
+renderTrades();
+
 }
 
-ma.push({
-time:data[i].time,
-value:sum/10
-});
+
+function drawLines(trade){
+
+trade.entryLine = chart.addLineSeries({color:"blue"});
+trade.entryLine.setData([{time:time,value:trade.entry}]);
+
+if(trade.sl){
+trade.slLine = chart.addLineSeries({color:"red"});
+trade.slLine.setData([{time:time,value:trade.sl}]);
+}
+
+if(trade.tp){
+trade.tpLine = chart.addLineSeries({color:"green"});
+trade.tpLine.setData([{time:time,value:trade.tp}]);
+}
 
 }
 
-maLine.setData(ma);
 
-}
-
-calcMA();
-
-
-// ===== MERCADO EN VIVO =====
+// ===== MERCADO =====
 
 setInterval(()=>{
 
@@ -193,68 +189,47 @@ close:close
 
 candles.update(candle);
 
-data.push(candle);
-
 price=close;
 time+=60;
 
 document.getElementById("price").innerHTML=
 "Precio: "+price.toFixed(5);
 
-calcMA();
-
-updateFloating();
+updateTrades();
 
 },2000);
 
 
-// ===== TRADING =====
+// ===== LOGICA =====
 
-let balance=10000;
-let trades=[];
-let wins=0;
-let losses=0;
+function updateTrades(){
 
-function buy(){
-openTrade("BUY");
+trades.forEach((t,i)=>{
+
+if(!t.open) return;
+
+let profit = t.type==="BUY"
+? (price-t.entry)*10000*t.lot
+: (t.entry-price)*10000*t.lot;
+
+t.profit=profit;
+
+
+// TP / SL
+
+if(t.tp && (
+(t.type==="BUY" && price>=t.tp) ||
+(t.type==="SELL" && price<=t.tp)
+)){
+closeTrade(i,"TP");
 }
 
-function sell(){
-openTrade("SELL");
+if(t.sl && (
+(t.type==="BUY" && price<=t.sl) ||
+(t.type==="SELL" && price>=t.sl)
+)){
+closeTrade(i,"SL");
 }
-
-function openTrade(type){
-
-let lot=parseFloat(document.getElementById("lot").value);
-
-let trade={
-type:type,
-entry:price,
-lot:lot,
-open:true
-};
-
-trades.push(trade);
-
-renderTrades();
-
-}
-
-function updateFloating(){
-
-trades.forEach(trade=>{
-
-if(!trade.open) return;
-
-let profit=0;
-
-if(trade.type==="BUY"){
-profit=(price-trade.entry)*10000*trade.lot;
-}else{
-profit=(trade.entry-price)*10000*trade.lot;
-}
-
-trade.profit=profit;
 
 });
 
@@ -262,23 +237,19 @@ renderTrades();
 
 }
 
-function closeTrade(index){
 
-let trade=trades[index];
+function closeTrade(i,reason){
 
-trade.open=false;
+let t=trades[i];
 
-balance+=trade.profit;
+t.open=false;
 
-if(trade.profit>0){
-wins++;
-}else{
-losses++;
-}
+balance+=t.profit;
 
-updateUI();
+renderTrades();
 
 }
+
 
 function renderTrades(){
 
@@ -289,8 +260,8 @@ trades.forEach((t,i)=>{
 html+=`
 <div class="trade">
 ${t.type} | Entry: ${t.entry.toFixed(5)}<br>
-Profit: ${t.profit ? t.profit.toFixed(2):0}<br>
-${t.open ? `<button onclick="closeTrade(${i})">Cerrar</button>`:"Cerrado"}
+Profit: ${t.profit? t.profit.toFixed(2):0}<br>
+${t.open ? "Abierto" : "Cerrado"}
 </div>
 `;
 
@@ -298,38 +269,12 @@ ${t.open ? `<button onclick="closeTrade(${i})">Cerrar</button>`:"Cerrado"}
 
 document.getElementById("trades").innerHTML=html;
 
-updateUI();
-
-}
-
-function updateUI(){
-
 document.getElementById("balance").innerHTML=
 "Balance: $"+balance.toFixed(2);
 
-let total=wins+losses;
-
-let winrate= total>0 ? (wins/total*100).toFixed(1):0;
-
-document.getElementById("stats").innerHTML=
-"Ganadas: "+wins+"<br>Perdidas: "+losses+"<br>Winrate: "+winrate+"%";
-
 }
-
-
-// RESPONSIVE
-
-window.addEventListener("resize",()=>{
-
-chart.applyOptions({
-width:window.innerWidth*0.75,
-height:window.innerHeight
-});
-
-});
 
 </script>
 
 </body>
-
 </html>
