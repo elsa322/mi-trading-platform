@@ -1,177 +1,171 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
-  <title>Trading PRO FIX</title>
-  <script src="https://s3.tradingview.com/tv.js"></script>
+<meta charset="UTF-8">
+<title>Pro Trading Platform</title>
 
-  <style>
-    body {
-      background:#0d1117;
-      color:white;
-      text-align:center;
-      font-family:Arial;
-    }
+<style>
+body{
+    margin:0;
+    background:#0d1117;
+    color:white;
+    font-family:Arial;
+}
 
-    #chart {
-      height:500px;
-    }
+#chart{
+    width:100%;
+    height:500px;
+    background:#111;
+}
 
-    #overlay {
-      position:relative;
-      top:-500px;
-      height:500px;
-      pointer-events:none;
-    }
+#panel{
+    padding:10px;
+    background:#161b22;
+}
 
-    .trade-line {
-      position:absolute;
-      width:100%;
-      height:2px;
-    }
+button{
+    padding:10px;
+    margin:5px;
+    border:none;
+    cursor:pointer;
+    font-weight:bold;
+}
 
-    .buy-line { background:lime; }
-    .sell-line { background:red; }
+.buy{background:green;color:white;}
+.sell{background:red;color:white;}
+</style>
 
-    .trade-label {
-      position:absolute;
-      right:10px;
-      padding:4px 8px;
-      font-size:12px;
-      border-radius:5px;
-      color:white;
-    }
-
-    .buy-label { background:green; }
-    .sell-label { background:red; }
-
-    button {
-      padding:10px;
-      margin:10px;
-      font-size:16px;
-    }
-  </style>
 </head>
-
 <body>
 
-<h2>Balance: $<span id="balance">1000</span></h2>
-<h3 id="price">Cargando...</h3>
+<h2 style="padding:10px;">🔥 Pro Trading Platform</h2>
 
 <div id="chart"></div>
-<div id="overlay"></div>
 
-<button onclick="trade('buy')">BUY</button>
-<button onclick="trade('sell')">SELL</button>
+<div id="panel">
+    <button class="buy" onclick="openTrade('buy')">BUY</button>
+    <button class="sell" onclick="openTrade('sell')">SELL</button>
+    <p id="price">Precio...</p>
+</div>
+
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
 
 <script>
-let balance = 1000;
+// ========================
+// CONFIG
+// ========================
 let price = 1.1000;
 let spread = 0.0002;
-let trades = [];
+let trend = 0.0001;
+let time = Math.floor(Date.now()/1000);
 
-// TradingView
-new TradingView.widget({
-  container_id: "chart",
-  width: "100%",
-  height: 500,
-  symbol: "FX:EURUSD",
-  interval: "1",
-  theme: "dark",
-  style: "1"
+// ========================
+// CHART
+// ========================
+const chart = LightweightCharts.createChart(document.getElementById('chart'),{
+    width:window.innerWidth,
+    height:500,
+    layout:{background:{color:'#111'}, textColor:'#DDD'},
+    grid:{vertLines:{color:'#222'}, horzLines:{color:'#222'}}
 });
 
-// Crear visual
-function createTradeVisual(trade){
-  let overlay = document.getElementById("overlay");
-  if(!overlay) return;
+const candles = chart.addCandlestickSeries();
 
-  let line = document.createElement("div");
-  let label = document.createElement("div");
+// ========================
+// DATOS
+// ========================
+let data = [];
+for(let i=0;i<50;i++){
+    let open = price;
+    let close = open + (Math.random()-0.5)*0.002;
+    let high = Math.max(open,close)+Math.random()*0.001;
+    let low = Math.min(open,close)-Math.random()*0.001;
 
-  line.className = "trade-line " + (trade.type === "buy" ? "buy-line" : "sell-line");
-  label.className = "trade-label " + (trade.type === "buy" ? "buy-label" : "sell-label");
+    data.push({time:time, open, high, low, close});
+    price = close;
+    time += 60;
+}
+candles.setData(data);
 
-  overlay.appendChild(line);
-  overlay.appendChild(label);
+// ========================
+// TRADES
+// ========================
+let trades = [];
 
-  trade.line = line;
-  trade.label = label;
+function openTrade(type){
+    let trade = {
+        type:type,
+        entry:price,
+        line:candles.createPriceLine({
+            price:price,
+            color:type==="buy"?"green":"red",
+            lineWidth:2
+        })
+    };
+    trades.push(trade);
 }
 
-// Actualizar visual
-function updateTradeVisuals(){
-  trades.forEach(trade => {
-
-    let y = 500 - ((trade.entry - 1.095) * 200000);
-
-    if(trade.line && trade.label){
-      trade.line.style.top = y + "px";
-      trade.label.style.top = (y - 10) + "px";
-    }
-
-    let profit = trade.type === "buy"
-      ? price - trade.entry
-      : trade.entry - price;
-
-    let pips = (profit * 10000).toFixed(1);
-
-    if(trade.label){
-      trade.label.innerText =
-        trade.type.toUpperCase() +
-        " | " + trade.entry.toFixed(5) +
-        " | " + pips + " pips";
-    }
-  });
+// ========================
+// ACTUALIZAR TRADES
+// ========================
+function updateTrades(){
+    trades.forEach(t=>{
+        let pnl = t.type==="buy" ? price - t.entry : t.entry - price;
+        t.line.applyOptions({
+            title: "PNL: " + pnl.toFixed(5)
+        });
+    });
 }
 
-// Mercado simulado
-setInterval(() => {
+// ========================
+// MOTOR DE MERCADO PRO
+// ========================
+setInterval(()=>{
 
-  let move = (Math.random() - 0.5) * 0.001;
-  price += move;
-
-  let bid = price;
-  let ask = price + spread;
-
-  document.getElementById("price").innerText =
-    "BID: " + bid.toFixed(5) + " | ASK: " + ask.toFixed(5);
-
-  updateTradeVisuals();
-
-}, 1000);
-
-// Ejecutar trade
-function trade(type){
-  let entry = price;
-
-  let tradeObj = {
-    type: type,
-    entry: entry,
-    line: null,
-    label: null
-  };
-
-  trades.push(tradeObj);
-  createTradeVisual(tradeObj);
-
-  setTimeout(() => {
-
-    let exit = price;
-    let win = (type === "buy" && exit > entry) ||
-              (type === "sell" && exit < entry);
-
-    if(Math.random() < 0.3){
-      win = false;
+    // CAMBIO DE TENDENCIA
+    if(Math.random()<0.05){
+        trend = (Math.random()-0.5)*0.001;
     }
 
-    balance += win ? 50 : -50;
+    // MOVIMIENTO BASE
+    let move = trend;
 
-    alert(win ? "✅ Ganaste" : "❌ Perdiste");
+    // RETROCESOS
+    move += (Math.random()-0.5)*0.0005;
 
-    document.getElementById("balance").innerText = balance;
+    // IMPULSOS (NOTICIAS)
+    if(Math.random()<0.03){
+        move += (Math.random()-0.5)*0.003;
+    }
 
-  }, 5000);
-}
+    let open = price;
+    let close = open + move;
+
+    let high = Math.max(open,close) + Math.random()*0.0007;
+    let low = Math.min(open,close) - Math.random()*0.0007;
+
+    candles.update({
+        time:time,
+        open:open,
+        high:high,
+        low:low,
+        close:close
+    });
+
+    price = close;
+    time += 60;
+
+    let bid = price;
+    let ask = price + spread;
+
+    document.getElementById("price").innerHTML =
+        "BID: " + bid.toFixed(5) +
+        " | ASK: " + ask.toFixed(5);
+
+    updateTrades();
+
+},2000);
+
 </script>
 
 </body>
