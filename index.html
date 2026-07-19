@@ -1,107 +1,116 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <title>Trading Platform PRO</title>
-  <script src="https://s3.tradingview.com/tv.js"></script>
-  <style>
-    body {
-      background-color: #0d1117;
-      color: white;
-      font-family: Arial;
-      text-align: center;
-    }
-    #chart {
-      height: 500px;
-    }
-    button {
-      padding: 12px;
-      margin: 10px;
-      font-size: 16px;
-      border: none;
-      cursor: pointer;
-    }
-    .buy { background: green; color: white; }
-    .sell { background: red; color: white; }
-  </style>
-</head>
-
-<body>
-
-<h1>🔥 Trading Platform PRO</h1>
-<h3>Balance: $<span id="balance">1000</span></h3>
-
-<div id="chart"></div>
-
-<button class="buy" onclick="trade('buy')">BUY</button>
-<button class="sell" onclick="trade('sell')">SELL</button>
-
 <script>
 let balance = 1000;
 let price = 1.1000;
-let directionBias = 0; // 0 neutral, 1 up, -1 down
+let trend = 0;
+let time = Math.floor(Date.now() / 1000);
+let spread = 0.0002;
 
-// Crear gráfico TradingView
-new TradingView.widget({
-  "container_id": "chart",
-  "width": "100%",
-  "height": 500,
-  "symbol": "FX:EURUSD",
-  "interval": "1",
-  "theme": "dark",
-  "style": "1",
-  "locale": "en",
-  "toolbar_bg": "#0d1117",
-  "enable_publishing": false,
-  "hide_side_toolbar": false
-});
+let lastHigh = price;
+let lastLow = price;
+let liquidityZones = [];
 
-// Simulación de mercado
-function moveMarket() {
-  let random = (Math.random() - 0.5) * 0.002;
+// Simulación de trades activos
+let trades = [];
 
-  // Simulación de manipulación (liquidez)
-  if (Math.random() < 0.2) {
-    // Barrida falsa
-    random *= -3;
-  }
+function updateTrades(){
+  trades.forEach(t => {
+    let current = price;
+    let profit = 0;
 
-  // Tendencia leve
-  random += directionBias * 0.0005;
+    if(t.type === "buy"){
+      profit = current - t.entry;
+    } else {
+      profit = t.entry - current;
+    }
 
-  price += random;
+    t.profit = profit;
+  });
 }
 
-setInterval(moveMarket, 1000);
+// SIMULACIÓN DE MERCADO PRO
+setInterval(() => {
 
-// Trading
-function trade(type) {
+  // CAMBIO DE TENDENCIA
+  if(Math.random() < 0.05){
+    trend = (Math.random() - 0.5) * 0.001;
+  }
+
+  // MOVIMIENTO BASE
+  let move = trend;
+
+  // RUIDO
+  move += (Math.random() - 0.5) * 0.0005;
+
+  // IMPULSO FUERTE
+  if(Math.random() < 0.03){
+    move += (Math.random() - 0.5) * 0.003;
+  }
+
+  let open = price;
+  let close = open + move;
+  let high = Math.max(open, close) + Math.random() * 0.0005;
+  let low = Math.min(open, close) - Math.random() * 0.0005;
+
+  price = close;
+  time += 60;
+
+  // BID / ASK
+  let bid = price;
+  let ask = price + spread;
+
+  // Mostrar precio
+  document.getElementById("price").innerHTML =
+    "BID: " + bid.toFixed(5) + " | ASK: " + ask.toFixed(5);
+
+  // Actualizar trades
+  updateTrades();
+
+  // DETECTAR LIQUIDEZ
+  if(close > lastHigh){
+    liquidityZones.push({price: lastHigh, type: "high"});
+    lastHigh = close;
+  }
+
+  if(close < lastLow){
+    liquidityZones.push({price: lastLow, type: "low"});
+    lastLow = close;
+  }
+
+}, 2000);
+
+
+// FUNCION TRADE
+function trade(type){
   let entry = price;
+
+  trades.push({
+    type: type,
+    entry: entry,
+    profit: 0
+  });
 
   setTimeout(() => {
     let exit = price;
     let win = false;
 
-    if (type === "buy" && exit > entry) win = true;
-    if (type === "sell" && exit < entry) win = true;
+    if(type === "buy" && exit > entry) win = true;
+    if(type === "sell" && exit < entry) win = true;
 
-    // Manipulación simulada (como OTC)
-    if (Math.random() < 0.3) {
+    // SIMULACION MANIPULACION
+    if(Math.random() < 0.3){
       win = false;
     }
 
-    if (win) {
+    if(win){
       balance += 50;
-      alert("✅ Ganaste!");
+      alert("✅ Ganaste");
     } else {
       balance -= 50;
-      alert("❌ Perdiste!");
+      alert("❌ Perdiste");
     }
 
     document.getElementById("balance").innerText = balance;
 
-  }, 5000); // trade dura 5 segundos
+  }, 5000);
 }
 </script>
-
-</body>
-</html>
