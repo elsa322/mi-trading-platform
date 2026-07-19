@@ -1,280 +1,52 @@
-<!DOCTYPE html>
-<html lang="es">
-
-<head>
-<meta charset="UTF-8">
-<title>Forex Pro Level</title>
-
-<script src="https://unpkg.com/lightweight-charts@4.1.3/dist/lightweight-charts.standalone.production.js"></script>
-
-<style>
-
-body{
-margin:0;
-display:flex;
-background:#0b1220;
-color:white;
-font-family:Arial;
-}
-
-#chart{
-width:75%;
-height:100vh;
-}
-
-.panel{
-width:25%;
-background:#111827;
-padding:20px;
-}
-
-button{
-width:100%;
-padding:12px;
-margin-top:10px;
-border:none;
-border-radius:5px;
-cursor:pointer;
-}
-
-.buy{background:#16a34a;color:white;}
-.sell{background:#dc2626;color:white;}
-
-input{
-width:100%;
-padding:10px;
-margin-top:10px;
-border-radius:5px;
-border:none;
-}
-
-.trade{
-background:#1f2937;
-padding:10px;
-margin-top:10px;
-border-radius:5px;
-}
-
-</style>
-
-</head>
-
-
-<body>
-
-<div id="chart"></div>
-
-<div class="panel">
-
-<h2>EUR/USD</h2>
-
-<input id="lot" type="number" value="1" step="0.1">
-<input id="sl" type="number" placeholder="Stop Loss (ej: 1.0980)">
-<input id="tp" type="number" placeholder="Take Profit (ej: 1.1020)">
-
-<button class="buy" onclick="buy()">BUY</button>
-<button class="sell" onclick="sell()">SELL</button>
-
-<h3 id="price">Precio: 1.1000</h3>
-<h3 id="balance">Balance: $10000</h3>
-
-<div id="trades"></div>
-
-</div>
-
-
-<script>
-
-// ===== GRÁFICO =====
-
-const chart = LightweightCharts.createChart(document.getElementById("chart"),{
-layout:{background:{color:"#0b1220"},textColor:"white"},
-width:window.innerWidth*0.75,
-height:window.innerHeight
-});
-
-const candles = chart.addCandlestickSeries();
-
-let data=[];
-let price=1.1000;
-let time=Math.floor(Date.now()/1000)-3600;
-
-for(let i=0;i<100;i++){
-
-let open=price;
-let close=open+(Math.random()-0.5)*0.002;
-
-let candle={
-time:time,
-open:open,
-high:Math.max(open,close)+0.001,
-low:Math.min(open,close)-0.001,
-close:close
-};
-
-data.push(candle);
-
-price=close;
-time+=60;
-
-}
-
-candles.setData(data);
-
-
-// ===== TRADES =====
-
-let trades=[];
-let balance=10000;
-
-function buy(){ openTrade("BUY"); }
-function sell(){ openTrade("SELL"); }
-
-function openTrade(type){
-
-let lot=parseFloat(document.getElementById("lot").value);
-let sl=parseFloat(document.getElementById("sl").value);
-let tp=parseFloat(document.getElementById("tp").value);
-
-let trade={
-type:type,
-entry:price,
-lot:lot,
-sl:sl,
-tp:tp,
-open:true
-};
-
-trades.push(trade);
-
-drawLines(trade);
-
-renderTrades();
-
-}
-
-
-function drawLines(trade){
-
-trade.entryLine = chart.addLineSeries({color:"blue"});
-trade.entryLine.setData([{time:time,value:trade.entry}]);
-
-if(trade.sl){
-trade.slLine = chart.addLineSeries({color:"red"});
-trade.slLine.setData([{time:time,value:trade.sl}]);
-}
-
-if(trade.tp){
-trade.tpLine = chart.addLineSeries({color:"green"});
-trade.tpLine.setData([{time:time,value:trade.tp}]);
-}
-
-}
-
-
-// ===== MERCADO =====
-
 setInterval(()=>{
 
-let open=price;
-let close=open+(Math.random()-0.5)*0.002;
+// CAMBIO DE TENDENCIA ALEATORIO
+if(Math.random()<0.05){
+    trend = (Math.random()-0.5)*0.001;
+}
 
-let candle={
-time:time,
-open:open,
-high:Math.max(open,close)+0.001,
-low:Math.min(open,close)-0.001,
-close:close
+// MOVIMIENTO BASE (tendencia)
+let move = trend;
+
+// RUIDO (retrocesos)
+move += (Math.random()-0.5)*0.0005;
+
+// IMPULSOS FUERTES (tipo noticia)
+if(Math.random()<0.03){
+    move += (Math.random()-0.5)*0.003;
+}
+
+let open = price;
+let close = open + move;
+
+let high = Math.max(open,close) + Math.random()*0.0005;
+let low = Math.min(open,close) - Math.random()*0.0005;
+
+let candle = {
+    time:time,
+    open:open,
+    high:high,
+    low:low,
+    close:close
 };
 
 candles.update(candle);
 
-price=close;
-time+=60;
+price = close;
+time += 60;
 
-document.getElementById("price").innerHTML=
-"Precio: "+price.toFixed(5);
 
+// PRECIOS BID / ASK
+let bid = price;
+let ask = price + spread;
+
+
+// MOSTRAR PRECIO REAL
+document.getElementById("price").innerHTML =
+"BID: " + bid.toFixed(5) + " | ASK: " + ask.toFixed(5);
+
+
+// ACTUALIZAR TRADES
 updateTrades();
 
 },2000);
-
-
-// ===== LOGICA =====
-
-function updateTrades(){
-
-trades.forEach((t,i)=>{
-
-if(!t.open) return;
-
-let profit = t.type==="BUY"
-? (price-t.entry)*10000*t.lot
-: (t.entry-price)*10000*t.lot;
-
-t.profit=profit;
-
-
-// TP / SL
-
-if(t.tp && (
-(t.type==="BUY" && price>=t.tp) ||
-(t.type==="SELL" && price<=t.tp)
-)){
-closeTrade(i,"TP");
-}
-
-if(t.sl && (
-(t.type==="BUY" && price<=t.sl) ||
-(t.type==="SELL" && price>=t.sl)
-)){
-closeTrade(i,"SL");
-}
-
-});
-
-renderTrades();
-
-}
-
-
-function closeTrade(i,reason){
-
-let t=trades[i];
-
-t.open=false;
-
-balance+=t.profit;
-
-renderTrades();
-
-}
-
-
-function renderTrades(){
-
-let html="";
-
-trades.forEach((t,i)=>{
-
-html+=`
-<div class="trade">
-${t.type} | Entry: ${t.entry.toFixed(5)}<br>
-Profit: ${t.profit? t.profit.toFixed(2):0}<br>
-${t.open ? "Abierto" : "Cerrado"}
-</div>
-`;
-
-});
-
-document.getElementById("trades").innerHTML=html;
-
-document.getElementById("balance").innerHTML=
-"Balance: $"+balance.toFixed(2);
-
-}
-
-</script>
-
-</body>
-</html>
