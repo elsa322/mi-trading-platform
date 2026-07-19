@@ -1,63 +1,107 @@
-setInterval(()=>{
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Trading Platform PRO</title>
+  <script src="https://s3.tradingview.com/tv.js"></script>
+  <style>
+    body {
+      background-color: #0d1117;
+      color: white;
+      font-family: Arial;
+      text-align: center;
+    }
+    #chart {
+      height: 500px;
+    }
+    button {
+      padding: 12px;
+      margin: 10px;
+      font-size: 16px;
+      border: none;
+      cursor: pointer;
+    }
+    .buy { background: green; color: white; }
+    .sell { background: red; color: white; }
+  </style>
+</head>
 
-// CAMBIO DE TENDENCIA ALEATORIO
-if(Math.random()<0.05){
-    trend = (Math.random()-0.5)*0.001;
+<body>
+
+<h1>🔥 Trading Platform PRO</h1>
+<h3>Balance: $<span id="balance">1000</span></h3>
+
+<div id="chart"></div>
+
+<button class="buy" onclick="trade('buy')">BUY</button>
+<button class="sell" onclick="trade('sell')">SELL</button>
+
+<script>
+let balance = 1000;
+let price = 1.1000;
+let directionBias = 0; // 0 neutral, 1 up, -1 down
+
+// Crear gráfico TradingView
+new TradingView.widget({
+  "container_id": "chart",
+  "width": "100%",
+  "height": 500,
+  "symbol": "FX:EURUSD",
+  "interval": "1",
+  "theme": "dark",
+  "style": "1",
+  "locale": "en",
+  "toolbar_bg": "#0d1117",
+  "enable_publishing": false,
+  "hide_side_toolbar": false
+});
+
+// Simulación de mercado
+function moveMarket() {
+  let random = (Math.random() - 0.5) * 0.002;
+
+  // Simulación de manipulación (liquidez)
+  if (Math.random() < 0.2) {
+    // Barrida falsa
+    random *= -3;
+  }
+
+  // Tendencia leve
+  random += directionBias * 0.0005;
+
+  price += random;
 }
 
-// MOVIMIENTO BASE (tendencia)
-let move = trend;
+setInterval(moveMarket, 1000);
 
-// RUIDO (retrocesos)
-move += (Math.random()-0.5)*0.0005;
+// Trading
+function trade(type) {
+  let entry = price;
 
-// IMPULSOS FUERTES (tipo noticia)
-if(Math.random()<0.03){
-    move += (Math.random()-0.5)*0.003;
+  setTimeout(() => {
+    let exit = price;
+    let win = false;
+
+    if (type === "buy" && exit > entry) win = true;
+    if (type === "sell" && exit < entry) win = true;
+
+    // Manipulación simulada (como OTC)
+    if (Math.random() < 0.3) {
+      win = false;
+    }
+
+    if (win) {
+      balance += 50;
+      alert("✅ Ganaste!");
+    } else {
+      balance -= 50;
+      alert("❌ Perdiste!");
+    }
+
+    document.getElementById("balance").innerText = balance;
+
+  }, 5000); // trade dura 5 segundos
 }
+</script>
 
-let open = price;
-let close = open + move;
-
-let high = Math.max(open,close) + Math.random()*0.0005;
-let low = Math.min(open,close) - Math.random()*0.0005;
-
-let candle = {
-    time:time,
-    open:open,
-    high:high,
-    low:low,
-    close:close
-};
-
-candles.update(candle);
-
-price = close;
-time += 60;
-
-
-// PRECIOS BID / ASK
-let bid = price;
-let ask = price + spread;
-
-
-// MOSTRAR PRECIO REAL
-document.getElementById("price").innerHTML =
-"BID: " + bid.toFixed(5) + " | ASK: " + ask.toFixed(5);
-
-
-// ACTUALIZAR TRADES
-updateTrades();
-// DETECTAR NUEVOS MAXIMOS Y MINIMOS
-
-if(close > lastHigh){
-    liquidityZones.push({price: lastHigh, type: "high"});
-    lastHigh = close;
-}
-
-if(close < lastLow){
-    liquidityZones.push({price: lastLow, type: "low"});
-    lastLow = close;
-}
-},2000);
-    
+</body>
+</html>
