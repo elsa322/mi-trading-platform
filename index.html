@@ -48,5 +48,16 @@ document.getElementById("price").innerHTML =
 
 // ACTUALIZAR TRADES
 updateTrades();
+// DETECTAR NUEVOS MAXIMOS Y MINIMOS
 
+if(close > lastHigh){
+    liquidityZones.push({price: lastHigh, type: "high"});
+    lastHigh = close;
+}
+
+if(close < lastLow){
+    liquidityZones.push({price: lastLow, type: "low"});
+    lastLow = close;
+}
 },2000);
+    
